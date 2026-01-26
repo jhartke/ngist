@@ -88,7 +88,7 @@ def readMasterConfig(filename, galindex):
 
 def addPathsToConfig(
     config, dirPath
-):  # Amrlia - I *think* the input here is the dictionary...
+):  # Amelia - I *think* the input here is the dictionary...
     """
     Combine the configuration parameters from MasterConfig with the paths specified as command line arguments.
 
