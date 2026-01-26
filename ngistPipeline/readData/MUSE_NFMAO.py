@@ -3,6 +3,7 @@ import os
 
 import numpy as np
 from astropy.io import fits
+from astropy.wcs import WCS
 from printStatus import printStatus
 
 from ngistPipeline.readData import der_snr as der_snr
@@ -40,15 +41,29 @@ def readCube(config):
     # Reading the cube
     hdu = fits.open(config["GENERAL"]["INPUT"])
     hdr = hdu[1].header
+    hdr0 = hdu[0].header
     data = hdu[1].data
     s = np.shape(data)
     spec = np.reshape(data, [s[0], s[1] * s[2]])
 
+    wcshdr = WCS(hdr).to_header()
+
     # Read the error spectra if available. Otherwise estimate the errors with the der_snr algorithm
-    if len(hdu) == 3:
+    if len(hdu) >= 3:
         logging.info("Reading the error spectra from the cube")
         stat = hdu[2].data
+
+        # Scale variance 
+        try:
+            if config["READ_DATA"]["SCALE_VAR"] > 0:
+                stat = stat / (config["READ_DATA"]["SCALE_VAR"]**2)
+                logging.info("Scaling the error spectra from the cube ")
+        except:
+            pass
+
         espec = np.reshape(stat, [s[0], s[1] * s[2]])
+
+        
     elif len(hdu) == 2:
         logging.info(
             "No error extension found. Estimating the error spectra with the der_snr algorithm"
@@ -119,11 +134,13 @@ def readCube(config):
         )
     )[0]
     signal = np.nanmedian(spec[idx_snr, :], axis=0)
-    if len(hdu) == 3:
-        noise = np.abs(np.nanmedian(np.sqrt(espec[idx_snr, :]), axis=0))
+    if len(hdu) >= 3:
+        #noise = np.abs(np.nanmedian(np.sqrt(espec[idx_snr, :]), axis=0)) old
+        noise = np.sqrt(np.nanmedian(espec[idx_snr, :], axis=0))
     elif len(hdu) == 2:
         noise = espec[0, :]  # DER_SNR returns constant error spectra
-    snr = signal / noise
+    # snr = signal / noise
+    snr = np.nanmedian(spec[idx_snr, :] / np.sqrt(espec[idx_snr, :]), axis=0)
     logging.info(
         "Computing the signal-to-noise ratio in the wavelength range from "
         + str(config["READ_DATA"]["LMIN_SNR"])
@@ -156,6 +173,8 @@ def readCube(config):
         "signal": signal,
         "noise": noise,
         "pixelsize": pixelsize,
+        "wcshdr": wcshdr,
+        "hdr0": hdr0,
     }
 
     # Constrain cube to one central row if switch DEBUG is set
