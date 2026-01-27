@@ -85,6 +85,9 @@ def spectralMasking(config, file, logLam):
             maskComment[i] == "sky"
             or maskComment[i] == "SKY"
             or maskComment[i] == "Sky"
+            or maskComment[i] == 'Laser'
+            or maskComment[i] == 'LASER'
+            or maskComment[i] == 'laser'
         ):
             mask[i, 0] = mask[i, 0] / (1 + config["GENERAL"]["REDSHIFT"])
 
